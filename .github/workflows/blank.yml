@@ -11,6 +11,17 @@ jobs:
     runs-on: windows-latest
     
     steps:
+      - name: Remove Python Paths
+        shell: powershell
+        run: |
+          # 使用正则表达式定义要删除的路径模式
+          $pathPattern = 'C:\\hostedtoolcache\\windows\\Python\\[0-9.]+\\x64(\\Scripts)?$'
+          
+          # 过滤并重新设置 PATH
+          $newPath = ($env:Path -split ';' | 
+              Where-Object { $_ -and ($_ -notmatch $pathPattern) }) -join ';'
+          $env:Path = $newPath
+          
       - name: Show System Environment Variables
         shell: powershell
         run: |
