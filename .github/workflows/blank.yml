@@ -21,6 +21,20 @@ jobs:
           $newPath = ($env:Path -split ';' | 
               Where-Object { $_ -and ($_ -notmatch $pathPattern) }) -join ';'
           $env:Path = $newPath
+
+      - name: Remove Python Paths
+        shell: powershell
+        run: |
+          Start-Process powershell -Verb RunAs -ArgumentList @"
+            `$systemPath = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::Machine)
+            `$pathPattern = 'C:\\hostedtoolcache\\windows\\Python\\[0-9.]+\\x64(\\Scripts)?$'
+            `$newPath = (`$systemPath -split ';' | Where-Object { `$_ -and (`$_ -notmatch `$pathPattern) }) -join ';'
+            [System.Environment]::SetEnvironmentVariable('Path', `$newPath, [System.EnvironmentVariableTarget]::Machine)
+          "@
+          
+          # 刷新当前会话的环境变量
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::Machine) + ';' + 
+                     [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::User)
           
       - name: Show System Environment Variables
         shell: powershell
