@@ -61,8 +61,6 @@ jobs:
         Write-Host "Current Path environment variable:"
         $env:Path -split ';' | ForEach-Object { Write-Host $_ }
         
-        Write-Host "`nChecking for remaining Python installations:"
-        Get-Command python -ErrorAction SilentlyContinue
         shell: pwsh
 
     - name: 'Install Required Tools'
