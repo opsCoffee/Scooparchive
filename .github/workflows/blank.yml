@@ -84,9 +84,9 @@ jobs:
           
           Write-Host "::endgroup::"
             
-        - name: Show System Environment Variables
-          shell: powershell
-          run: |
+      - name: Show System Environment Variables
+        shell: powershell
+        run: |
             Write-Host "================================================================" -ForegroundColor Blue
             Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
             Write-Host "================================================================" -ForegroundColor Blue
