@@ -11,109 +11,102 @@ jobs:
     runs-on: windows-latest
     
     steps:
-name: 'Cleanup PyPy Environment'
-description: 'Remove PyPy installation and clean up related environment variables'
-author: 'Your Name'
-
-runs:
-  using: "composite"
-  steps:
-    - name: Clean PyPy Environment (Windows)
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        
-        Write-Host "::group::Starting PyPy environment cleanup"
-        
-        try {
-          # Get tools directory from GitHub Actions environment
-          $toolsDirectory = $env:RUNNER_TOOL_CACHE
-          if (-not $toolsDirectory) {
-            $toolsDirectory = $env:AGENT_TOOLSDIRECTORY
-          }
-          
-          # 1. Remove PyPy directory
-          $pypyToolcachePath = Join-Path -Path $toolsDirectory -ChildPath "PyPy"
-          if (Test-Path $pypyToolcachePath) {
-            Write-Host "Removing PyPy toolcache directory: $pypyToolcachePath"
-            Remove-Item -Path $pypyToolcachePath -Recurse -Force
-          }
-          
-          # 2. Clean PATH environment
-          $paths = [Environment]::GetEnvironmentVariable("PATH", "Machine").Split(";")
-          $newPaths = $paths | Where-Object { $_ -notlike "*PyPy*" }
-          $newPathString = $newPaths -join ";"
-          
-          Write-Host "Updating system PATH environment variable"
-          [Environment]::SetEnvironmentVariable("PATH", $newPathString, "Machine")
-          
-          # 3. Remove PyPy environment variables
-          Write-Host "Removing PyPy related environment variables"
-          $envVars = [Environment]::GetEnvironmentVariables("Machine")
-          foreach ($var in $envVars.Keys) {
-            if ($var -like "*PYPY*") {
-              Write-Host "Removing environment variable: $var"
-              [Environment]::SetEnvironmentVariable($var, $null, "Machine")
-            }
-          }
-          
-          # 4. Clean pip cache
-          $pipCache = Join-Path -Path $env:LOCALAPPDATA -ChildPath "pip\Cache"
-          if (Test-Path $pipCache) {
-            Write-Host "Cleaning pip cache"
-            Get-ChildItem -Path $pipCache -Recurse | 
-              Where-Object { $_.Name -like "*pypy*" } | 
-              Remove-Item -Force
-          }
-          
-          # 5. Verify cleanup
-          $verificationResult = @{
-            PyPyExists = Test-Path $pypyToolcachePath
-            PyPyInPath = $env:PATH -like "*PyPy*"
-          }
-          
-          if (-not $verificationResult.PyPyExists -and -not $verificationResult.PyPyInPath) {
-            Write-Host "✅ PyPy environment cleanup successful"
-          } else {
-            Write-Warning "⚠️ Some PyPy components may still be present"
-            Write-Host "Verification results:"
-            $verificationResult | ConvertTo-Json | Write-Host
-          }
-          
-          # Set output for subsequent steps
-          echo "cleanup_success=true" >> $env:GITHUB_OUTPUT
-          
-        } catch {
-          Write-Error "❌ Error during cleanup: $_"
-          echo "cleanup_success=false" >> $env:GITHUB_OUTPUT
-          exit 1
-        }
-        
-        Write-Host "::endgroup::"
-          
-      - name: Show System Environment Variables
-        shell: powershell
+      - name: Clean PyPy Environment (Windows)
+        shell: pwsh
         run: |
-          Write-Host "================================================================" -ForegroundColor Blue
-          Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
-          Write-Host "================================================================" -ForegroundColor Blue
+          $ErrorActionPreference = 'Stop'
           
-          $systemVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)
-          $systemVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
-              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
-              if ($_.Name -eq 'Path') {
-                  Write-Host "Value (line by line):" -ForegroundColor Yellow
-                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
-                      if (Test-Path $_) {
-                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
-                      } else {
-                          Write-Host "  [MISSING] $_" -ForegroundColor Red
-                      }
-                  }
-              } else {
-                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+          Write-Host "::group::Starting PyPy environment cleanup"
+          
+          try {
+            # Get tools directory from GitHub Actions environment
+            $toolsDirectory = $env:RUNNER_TOOL_CACHE
+            if (-not $toolsDirectory) {
+              $toolsDirectory = $env:AGENT_TOOLSDIRECTORY
+            }
+            
+            # 1. Remove PyPy directory
+            $pypyToolcachePath = Join-Path -Path $toolsDirectory -ChildPath "PyPy"
+            if (Test-Path $pypyToolcachePath) {
+              Write-Host "Removing PyPy toolcache directory: $pypyToolcachePath"
+              Remove-Item -Path $pypyToolcachePath -Recurse -Force
+            }
+            
+            # 2. Clean PATH environment
+            $paths = [Environment]::GetEnvironmentVariable("PATH", "Machine").Split(";")
+            $newPaths = $paths | Where-Object { $_ -notlike "*PyPy*" }
+            $newPathString = $newPaths -join ";"
+            
+            Write-Host "Updating system PATH environment variable"
+            [Environment]::SetEnvironmentVariable("PATH", $newPathString, "Machine")
+            
+            # 3. Remove PyPy environment variables
+            Write-Host "Removing PyPy related environment variables"
+            $envVars = [Environment]::GetEnvironmentVariables("Machine")
+            foreach ($var in $envVars.Keys) {
+              if ($var -like "*PYPY*") {
+                Write-Host "Removing environment variable: $var"
+                [Environment]::SetEnvironmentVariable($var, $null, "Machine")
               }
+            }
+            
+            # 4. Clean pip cache
+            $pipCache = Join-Path -Path $env:LOCALAPPDATA -ChildPath "pip\Cache"
+            if (Test-Path $pipCache) {
+              Write-Host "Cleaning pip cache"
+              Get-ChildItem -Path $pipCache -Recurse | 
+                Where-Object { $_.Name -like "*pypy*" } | 
+                Remove-Item -Force
+            }
+            
+            # 5. Verify cleanup
+            $verificationResult = @{
+              PyPyExists = Test-Path $pypyToolcachePath
+              PyPyInPath = $env:PATH -like "*PyPy*"
+            }
+            
+            if (-not $verificationResult.PyPyExists -and -not $verificationResult.PyPyInPath) {
+              Write-Host "✅ PyPy environment cleanup successful"
+            } else {
+              Write-Warning "⚠️ Some PyPy components may still be present"
+              Write-Host "Verification results:"
+              $verificationResult | ConvertTo-Json | Write-Host
+            }
+            
+            # Set output for subsequent steps
+            echo "cleanup_success=true" >> $env:GITHUB_OUTPUT
+            
+          } catch {
+            Write-Error "❌ Error during cleanup: $_"
+            echo "cleanup_success=false" >> $env:GITHUB_OUTPUT
+            exit 1
           }
+          
+          Write-Host "::endgroup::"
+            
+        - name: Show System Environment Variables
+          shell: powershell
+          run: |
+            Write-Host "================================================================" -ForegroundColor Blue
+            Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
+            Write-Host "================================================================" -ForegroundColor Blue
+            
+            $systemVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)
+            $systemVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
+                Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+                if ($_.Name -eq 'Path') {
+                    Write-Host "Value (line by line):" -ForegroundColor Yellow
+                    $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
+                        if (Test-Path $_) {
+                            Write-Host "  [EXISTS] $_" -ForegroundColor Green
+                        } else {
+                            Write-Host "  [MISSING] $_" -ForegroundColor Red
+                        }
+                    }
+                } else {
+                    Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+                }
+            }
 
       - name: Show User Environment Variables
         shell: powershell
