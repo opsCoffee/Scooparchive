@@ -50,7 +50,7 @@ jobs:
       shell: pwsh
       run: |
         echo "C:\00PackageManager\Scoop\apps\python\current\Scripts" >> $GITHUB_PATH
-        $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
+        & $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
         & $env:SCOOPpy -m pip install --upgrade pip
         & $env:SCOOPpy -m pip -V
         & $env:SCOOPpy -m pip install sqlmap bs4 XlsxWriter tqdm python-libnmap pyDes pipx openpyxl tldextract
