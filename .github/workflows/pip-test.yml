@@ -52,7 +52,7 @@ jobs:
         cd C:\00PackageManager\ghauri
         & $env:SCOOPpy -m pip install --upgrade -r requirements.txt
         tree /f
-        & sudo $env:SCOOPpy setup.py install
+        & $env:SCOOPpy setup.py install
         & $env:SCOOPpy -m pip freeze
 
     - name: 'Compress Scoop Directory'
