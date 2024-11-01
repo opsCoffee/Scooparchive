@@ -1,27 +1,162 @@
 name: Show Windows Environment Variables
-on: [push]
+on: 
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
 
 jobs:
-  show-env:
+  show-environment:
     runs-on: windows-latest
+    
     steps:
-      # 输出系统环境变量
       - name: Show System Environment Variables
         shell: powershell
         run: |
-          Write-Host "=== System Environment Variables ==="
-          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine) | Format-Table -AutoSize
+          Write-Host "================================================================" -ForegroundColor Blue
+          Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
+          Write-Host "================================================================" -ForegroundColor Blue
+          
+          $systemVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)
+          $systemVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
+              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+              if ($_.Name -eq 'Path') {
+                  Write-Host "Value (line by line):" -ForegroundColor Yellow
+                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
+                      if (Test-Path $_) {
+                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
+                      } else {
+                          Write-Host "  [MISSING] $_" -ForegroundColor Red
+                      }
+                  }
+              } else {
+                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+              }
+          }
 
-      # 输出用户环境变量
       - name: Show User Environment Variables
         shell: powershell
         run: |
-          Write-Host "=== User Environment Variables ==="
-          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User) | Format-Table -AutoSize
+          Write-Host "================================================================" -ForegroundColor Blue
+          Write-Host "                    User Environment Variables                    " -ForegroundColor Blue
+          Write-Host "================================================================" -ForegroundColor Blue
+          
+          $userVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)
+          $userVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
+              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+              if ($_.Name -eq 'Path') {
+                  Write-Host "Value (line by line):" -ForegroundColor Yellow
+                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
+                      if (Test-Path $_) {
+                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
+                      } else {
+                          Write-Host "  [MISSING] $_" -ForegroundColor Red
+                      }
+                  }
+              } else {
+                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+              }
+          }
 
-      # 输出进程环境变量（当前会话）
       - name: Show Process Environment Variables
         shell: powershell
         run: |
-          Write-Host "=== Process Environment Variables ==="
-          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process) | Format-Table -AutoSize
+          Write-Host "================================================================" -ForegroundColor Blue
+          Write-Host "                   Process Environment Variables                  " -ForegroundColor Blue
+          Write-Host "================================================================" -ForegroundColor Blue
+          
+          Get-ChildItem env: | Sort-Object Name | ForEach-Object {
+              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+              if ($_.Name -eq 'Path') {
+                  Write-Host "Value (line by line):" -ForegroundColor Yellow
+                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
+                      if (Test-Path $_) {
+                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
+                      } else {
+                          Write-Host "  [MISSING] $_" -ForegroundColor Red
+                      }
+                  }
+              } else {
+                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+              }
+          }
+
+      - name: Show PATH Statistics
+        shell: powershell
+        run: |
+          Write-Host "================================================================" -ForegroundColor Blue
+          Write-Host "                        PATH Statistics                          " -ForegroundColor Blue
+          Write-Host "================================================================" -ForegroundColor Blue
+          
+          function Get-PathStats {
+              param (
+                  [string]$PathType,
+                  [string]$PathValue
+              )
+              $paths = $PathValue -split ';' | Where-Object { $_ }
+              $existingPaths = $paths | Where-Object { Test-Path $_ }
+              $missingPaths = $paths | Where-Object { -not (Test-Path $_) }
+              
+              Write-Host "`n$PathType PATH Statistics:" -ForegroundColor Green
+              Write-Host "Total entries: $($paths.Count)" -ForegroundColor Yellow
+              Write-Host "Existing paths: $($existingPaths.Count)" -ForegroundColor Green
+              Write-Host "Missing paths: $($missingPaths.Count)" -ForegroundColor Red
+          }
+
+          # System PATH Statistics
+          $systemPath = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::Machine)
+          Get-PathStats "System" $systemPath
+
+          # User PATH Statistics
+          $userPath = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::User)
+          Get-PathStats "User" $userPath
+
+          # Process PATH Statistics
+          Get-PathStats "Process" $env:Path
+
+      - name: Show GitHub-specific Environment Variables
+        shell: powershell
+        run: |
+          Write-Host "================================================================" -ForegroundColor Blue
+          Write-Host "                  GitHub Environment Variables                    " -ForegroundColor Blue
+          Write-Host "================================================================" -ForegroundColor Blue
+          
+          Get-ChildItem env: | Where-Object { $_.Name -like 'GITHUB_*' } | Sort-Object Name | ForEach-Object {
+              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+              Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+          }
+
+      - name: Export Environment Variables to File
+        shell: powershell
+        run: |
+          $outputPath = "environment_variables.txt"
+          
+          "================================================================" | Out-File -FilePath $outputPath
+          "                   Environment Variables Report                    " | Out-File -FilePath $outputPath -Append
+          "================================================================" | Out-File -FilePath $outputPath -Append
+          
+          "System Environment Variables:" | Out-File -FilePath $outputPath -Append
+          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine).GetEnumerator() | 
+              Sort-Object Name | 
+              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
+              Out-File -FilePath $outputPath -Append
+          
+          "`nUser Environment Variables:" | Out-File -FilePath $outputPath -Append
+          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User).GetEnumerator() | 
+              Sort-Object Name | 
+              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
+              Out-File -FilePath $outputPath -Append
+          
+          "`nProcess Environment Variables:" | Out-File -FilePath $outputPath -Append
+          Get-ChildItem env: | 
+              Sort-Object Name | 
+              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
+              Out-File -FilePath $outputPath -Append
+
+      - name: Upload Environment Variables Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: environment-variables-report
+          path: environment_variables.txt
+          retention-days: 7
