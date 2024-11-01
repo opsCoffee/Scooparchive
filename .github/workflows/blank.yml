@@ -1,0 +1,27 @@
+name: Show Windows Environment Variables
+on: [push]
+
+jobs:
+  show-env:
+    runs-on: windows-latest
+    steps:
+      # 输出系统环境变量
+      - name: Show System Environment Variables
+        shell: powershell
+        run: |
+          Write-Host "=== System Environment Variables ==="
+          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine) | Format-Table -AutoSize
+
+      # 输出用户环境变量
+      - name: Show User Environment Variables
+        shell: powershell
+        run: |
+          Write-Host "=== User Environment Variables ==="
+          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User) | Format-Table -AutoSize
+
+      # 输出进程环境变量（当前会话）
+      - name: Show Process Environment Variables
+        shell: powershell
+        run: |
+          Write-Host "=== Process Environment Variables ==="
+          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process) | Format-Table -AutoSize
