@@ -76,6 +76,7 @@ jobs:
         $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
         $env:PIP_USER=1
         & $env:SCOOPpy -m pip -V
+        & $env:SCOOPpy -m pip install setuptools
         & $env:SCOOPpy -m pip install sqlmap bs4 XlsxWriter tqdm python-libnmap pyDes pipx openpyxl tldextract --no-warn-script-location
         & $env:SCOOPpy -m pip install colorama rncryptor pandas requests pycryptodome beautifulsoup4 chardet --no-warn-script-location
         git clone --depth 1 https://github.com/r0oth3x49/ghauri.git C:\00PackageManager\ghauri
