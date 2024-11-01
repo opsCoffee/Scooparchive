@@ -1,163 +1,37 @@
-name: Show Windows Environment Variables
-on: 
-  push:
-    branches:
-      - main
-      - master
+name: Remove Python ENV
+
+on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  show-environment:
+  cleanup:
     runs-on: windows-latest
-    
     steps:
-      - name: Clean PyPy Environment (Windows)
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          
-          Write-Host "::group::Starting PyPy environment cleanup"
-          
-          try {
-            # Get tools directory from GitHub Actions environment
-            $toolsDirectory = $env:RUNNER_TOOL_CACHE
-            if (-not $toolsDirectory) {
-              $toolsDirectory = $env:AGENT_TOOLSDIRECTORY
-            }
-            
-            # 1. Remove PyPy directory
-            $pypyToolcachePath = Join-Path -Path $toolsDirectory -ChildPath "PyPy"
-            if (Test-Path $pypyToolcachePath) {
-              Write-Host "Removing PyPy toolcache directory: $pypyToolcachePath"
-              Remove-Item -Path $pypyToolcachePath -Recurse -Force
-            }
-            
-            # 2. Clean PATH environment
-            $paths = [Environment]::GetEnvironmentVariable("PATH", "Machine").Split(";")
-            $newPaths = $paths | Where-Object { $_ -notlike "*PyPy*" }
-            $newPathString = $newPaths -join ";"
-            
-            Write-Host "Updating system PATH environment variable"
-            [Environment]::SetEnvironmentVariable("PATH", $newPathString, "Machine")
-            
-            # 3. Remove PyPy environment variables
-            Write-Host "Removing PyPy related environment variables"
-            $envVars = [Environment]::GetEnvironmentVariables("Machine")
-            foreach ($var in $envVars.Keys) {
-              if ($var -like "*PYPY*") {
-                Write-Host "Removing environment variable: $var"
-                [Environment]::SetEnvironmentVariable($var, $null, "Machine")
-              }
-            }
-            
-            # 4. Clean pip cache
-            $pipCache = Join-Path -Path $env:LOCALAPPDATA -ChildPath "pip\Cache"
-            if (Test-Path $pipCache) {
-              Write-Host "Cleaning pip cache"
-              Get-ChildItem -Path $pipCache -Recurse | 
-                Where-Object { $_.Name -like "*pypy*" } | 
-                Remove-Item -Force
-            }
-            
-            # 5. Verify cleanup
-            $verificationResult = @{
-              PyPyExists = Test-Path $pypyToolcachePath
-              PyPyInPath = $env:PATH -like "*PyPy*"
-            }
-            
-            if (-not $verificationResult.PyPyExists -and -not $verificationResult.PyPyInPath) {
-              Write-Host "✅ PyPy environment cleanup successful"
-            } else {
-              Write-Warning "⚠️ Some PyPy components may still be present"
-              Write-Host "Verification results:"
-              $verificationResult | ConvertTo-Json | Write-Host
-            }
-            
-            # Set output for subsequent steps
-            echo "cleanup_success=true" >> $env:GITHUB_OUTPUT
-            
-          } catch {
-            Write-Error "❌ Error during cleanup: $_"
-            echo "cleanup_success=false" >> $env:GITHUB_OUTPUT
-            exit 1
-          }
-          
-          Write-Host "::endgroup::"
-            
-      - name: Show System Environment Variables
-        shell: powershell
-        run: |
-            Write-Host "================================================================" -ForegroundColor Blue
-            Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
-            Write-Host "================================================================" -ForegroundColor Blue
-            
-            $systemVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)
-            $systemVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
-                Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
-                if ($_.Name -eq 'Path') {
-                    Write-Host "Value (line by line):" -ForegroundColor Yellow
-                    $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
-                        if (Test-Path $_) {
-                            Write-Host "  [EXISTS] $_" -ForegroundColor Green
-                        } else {
-                            Write-Host "  [MISSING] $_" -ForegroundColor Red
-                        }
-                    }
-                } else {
-                    Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
-                }
-            }
+    - name: Remove Python ENV
+      shell: powershell
+      run: |
+        # 清理 PATH
+        $newPath = ($env:PATH -split ';' | Where-Object { 
+          -not ($_ -like '*Python*') -and
+          -not ($_ -like '*hostedtoolcache\windows\Python*')
+        }) -join ';'
+        $env:PATH = $newPath
+        
+        # 清理 Python 相关环境变量
+        Get-ChildItem env: | Where-Object { 
+          $_.Name -like '*PYTHON*' -or 
+          $_.Value -like '*Python*'
+        } | ForEach-Object { Remove-Item env:$($_.Name) -ErrorAction SilentlyContinue }
+        
+        # 验证
+        Write-Host "Remaining Python paths:"
+        $env:PATH -split ';' | Where-Object { $_ -like '*Python*' }
 
-      - name: Show User Environment Variables
-        shell: powershell
-        run: |
-          Write-Host "================================================================" -ForegroundColor Blue
-          Write-Host "                    User Environment Variables                    " -ForegroundColor Blue
-          Write-Host "================================================================" -ForegroundColor Blue
-          
-          $userVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)
-          $userVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
-              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
-              if ($_.Name -eq 'Path') {
-                  Write-Host "Value (line by line):" -ForegroundColor Yellow
-                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
-                      if (Test-Path $_) {
-                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
-                      } else {
-                          Write-Host "  [MISSING] $_" -ForegroundColor Red
-                      }
-                  }
-              } else {
-                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
-              }
-          }
-
-      - name: Show Process Environment Variables
-        shell: powershell
-        run: |
-          Write-Host "================================================================" -ForegroundColor Blue
-          Write-Host "                   Process Environment Variables                  " -ForegroundColor Blue
-          Write-Host "================================================================" -ForegroundColor Blue
-          
-          Get-ChildItem env: | Sort-Object Name | ForEach-Object {
-              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
-              if ($_.Name -eq 'Path') {
-                  Write-Host "Value (line by line):" -ForegroundColor Yellow
-                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
-                      if (Test-Path $_) {
-                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
-                      } else {
-                          Write-Host "  [MISSING] $_" -ForegroundColor Red
-                      }
-                  }
-              } else {
-                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
-              }
-          }
-
-      - name: Show PATH Statistics
-        shell: powershell
-        run: |
+    - name: Show PATH Statistics
+      shell: powershell
+      run: |
           Write-Host "================================================================" -ForegroundColor Blue
           Write-Host "                        PATH Statistics                          " -ForegroundColor Blue
           Write-Host "================================================================" -ForegroundColor Blue
@@ -187,49 +61,3 @@ jobs:
 
           # Process PATH Statistics
           Get-PathStats "Process" $env:Path
-
-      - name: Show GitHub-specific Environment Variables
-        shell: powershell
-        run: |
-          Write-Host "================================================================" -ForegroundColor Blue
-          Write-Host "                  GitHub Environment Variables                    " -ForegroundColor Blue
-          Write-Host "================================================================" -ForegroundColor Blue
-          
-          Get-ChildItem env: | Where-Object { $_.Name -like 'GITHUB_*' } | Sort-Object Name | ForEach-Object {
-              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
-              Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
-          }
-
-      - name: Export Environment Variables to File
-        shell: powershell
-        run: |
-          $outputPath = "environment_variables.txt"
-          
-          "================================================================" | Out-File -FilePath $outputPath
-          "                   Environment Variables Report                    " | Out-File -FilePath $outputPath -Append
-          "================================================================" | Out-File -FilePath $outputPath -Append
-          
-          "System Environment Variables:" | Out-File -FilePath $outputPath -Append
-          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine).GetEnumerator() | 
-              Sort-Object Name | 
-              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
-              Out-File -FilePath $outputPath -Append
-          
-          "`nUser Environment Variables:" | Out-File -FilePath $outputPath -Append
-          [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User).GetEnumerator() | 
-              Sort-Object Name | 
-              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
-              Out-File -FilePath $outputPath -Append
-          
-          "`nProcess Environment Variables:" | Out-File -FilePath $outputPath -Append
-          Get-ChildItem env: | 
-              Sort-Object Name | 
-              ForEach-Object { "$($_.Name)=$($_.Value)" } | 
-              Out-File -FilePath $outputPath -Append
-
-      - name: Upload Environment Variables Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: environment-variables-report
-          path: environment_variables.txt
-          retention-days: 7
