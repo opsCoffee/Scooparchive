@@ -33,7 +33,7 @@ jobs:
         }
         
         Write-Host "Environment variables cleaned successfully"
-'@
+        '@
         
         # 将脚本内容写入临时文件
         $scriptPath = Join-Path $env:TEMP "CleanupEnv.ps1"
