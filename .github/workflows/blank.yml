@@ -29,35 +29,27 @@ jobs:
         Write-Host "Remaining Python paths:"
         $env:PATH -split ';' | Where-Object { $_ -like '*Python*' }
 
-    - name: Show PATH Statistics
+    - name: Show System Environment Variables
       shell: powershell
       run: |
           Write-Host "================================================================" -ForegroundColor Blue
-          Write-Host "                        PATH Statistics                          " -ForegroundColor Blue
+          Write-Host "                   System Environment Variables                   " -ForegroundColor Blue
           Write-Host "================================================================" -ForegroundColor Blue
           
-          function Get-PathStats {
-              param (
-                  [string]$PathType,
-                  [string]$PathValue
-              )
-              $paths = $PathValue -split ';' | Where-Object { $_ }
-              $existingPaths = $paths | Where-Object { Test-Path $_ }
-              $missingPaths = $paths | Where-Object { -not (Test-Path $_) }
-              
-              Write-Host "`n$PathType PATH Statistics:" -ForegroundColor Green
-              Write-Host "Total entries: $($paths.Count)" -ForegroundColor Yellow
-              Write-Host "Existing paths: $($existingPaths.Count)" -ForegroundColor Green
-              Write-Host "Missing paths: $($missingPaths.Count)" -ForegroundColor Red
+          $systemVars = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)
+          $systemVars.GetEnumerator() | Sort-Object Name | ForEach-Object {
+              Write-Host "`nVariable: $($_.Name)" -ForegroundColor Green
+              if ($_.Name -eq 'Path') {
+                  Write-Host "Value (line by line):" -ForegroundColor Yellow
+                  $_.Value -split ';' | Where-Object { $_ } | ForEach-Object { 
+                      if (Test-Path $_) {
+                          Write-Host "  [EXISTS] $_" -ForegroundColor Green
+                      } else {
+                          Write-Host "  [MISSING] $_" -ForegroundColor Red
+                      }
+                  }
+              } else {
+                  Write-Host "Value: $($_.Value)" -ForegroundColor Yellow
+              }
           }
 
-          # System PATH Statistics
-          $systemPath = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::Machine)
-          Get-PathStats "System" $systemPath
-
-          # User PATH Statistics
-          $userPath = [System.Environment]::GetEnvironmentVariable('Path', [System.EnvironmentVariableTarget]::User)
-          Get-PathStats "User" $userPath
-
-          # Process PATH Statistics
-          Get-PathStats "Process" $env:Path
