@@ -32,8 +32,18 @@ jobs:
     - name: 'Install Required Tools'
       shell: pwsh 
       run: |
+        scoop install -k git aria2 sudo 7zip
+        scoop install -k python
+        scoop cleanup *
+        scoop cache rm *
+        scoop cleanup -k *
+        scoop list
+
+    - name: 'Downloads Pip Packages'
+      shell: pwsh
+      run: |
         echo "C:\00PackageManager\Scoop\apps\python\current\Scripts" >> $GITHUB_PATH
-        & $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
+        $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
         & $env:SCOOPpy -m pip install --upgrade pip
         & $env:SCOOPpy -m pip -V
         & $env:SCOOPpy -m pip install sqlmap bs4 XlsxWriter tqdm python-libnmap pyDes pipx openpyxl tldextract
@@ -42,16 +52,6 @@ jobs:
         cd ghauri
         & $env:SCOOPpy -m pip install --upgrade -r requirements.txt
         & $env:SCOOPpy setup.py install
-        & $env:SCOOPpy -m pip freeze
-
-    - name: 'Downloads Pip Packages'
-      shell: pwsh
-      run: |
-        $env:SCOOPpy='C:\00PackageManager\Scoop\apps\python\current\python.exe'
-        & $env:SCOOPpy -m pip install --upgrade pip
-        & $env:SCOOPpy -m pip -V
-        & $env:SCOOPpy -m pip install sqlmap bs4 XlsxWriter tqdm python-libnmap pyDes pipx openpyxl rncryptor pandas requests pycryptodome beautifulsoup4 
-        & $env:SCOOPpy -m pip install pathlib colorama collections subprocess
         & $env:SCOOPpy -m pip freeze
 
     - name: 'Compress Scoop Directory'
@@ -65,3 +65,6 @@ jobs:
       with:
         name: Scoop-00PackageManager
         path: C:\00PackageManager.7z
+        compression-level: 9 
+        retention-days: 5
+        
